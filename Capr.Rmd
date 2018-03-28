@@ -1,0 +1,787 @@
+---
+title: "Capstone"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+# Reading the Exchange Rate File  
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/exchange.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+head(data)
+tail(data)
+str(data)
+
+# Removing last two lines because of NA's and selecting data from Mar 1988 to Dec 2017
+data<- data[1:7788,]
+
+# checking NA values
+sum(is.na(data))
+
+# As we are interested in the price movement , we will use the price only . The other columns are deleted  
+data <- data[,1:2]
+
+# Changing names of columns
+names<- c("DATE", "Exchange_Rate")
+colnames(data)<-names
+
+# Converting the columns to Date and Integer 
+data$DATE<-as.Date(data$DATE, format = "%d-%b-%y")
+data$Exchange_Rate<- as.numeric(data$Exchange_Rate)
+
+install.packages("zoo")
+library(zoo)
+data$DATE<-as.yearmon(data$DATE)
+
+# Taking the monthly mean value of the exchange rate
+data<- aggregate(Exchange_Rate ~ DATE, data, mean)
+
+data <- subset(data, DATE<= "Dec 2017" )
+
+# exchange rate of USDCAD (Final Data for analysis )
+exchange_rate_data<- data
+head(exchange_rate_data)
+```
+```{r}
+#  Importing the Consumer Price Index of Canada 
+loc <- getwd()
+cpi_ca <- read.csv(paste(loc,"/ckme136/cpi_canada.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the data 
+head(cpi_ca)
+tail(cpi_ca)
+str(cpi_ca)
+
+# Checking NA's
+sum(is.na(cpi_ca))
+
+# Changing names of columns
+names<- c("DATE", "cpi_CA")
+colnames(cpi_ca)<- names
+
+# Converting the columns to Date  
+cpi_ca$DATE<-as.Date(cpi_ca$DATE, format = "%Y-%m-%d")
+cpi_ca$DATE<-as.yearmon(cpi_ca$DATE)
+
+#  Selecting data starting from March 1988
+cpi_ca<- subset(cpi_ca, DATE >= "Mar 1988")
+head(cpi_ca)
+```
+
+```{r}
+#  ----------------------------------------------------------------
+# Importing Consumer Price Index of US
+loc <- getwd()
+cpi_us <- read.csv(paste(loc,"/ckme136/cpi_us.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+str(cpi_us)
+head(cpi_us)
+tail(cpi_us)
+
+# Checking NA's
+sum(is.na(cpi_us))
+
+# Converting the columns to Date  
+names<- c("DATE", "cpi_US")
+colnames(cpi_us)<- names
+
+# Converting first column  to Date  
+cpi_us$DATE<-as.Date(cpi_us$DATE, format = "%Y-%m-%d")
+cpi_us$DATE<-as.yearmon(cpi_us$DATE)
+
+#  Selecting data starting from March 1988
+cpi_us<- subset(cpi_us, DATE >= "Mar 1988")
+head(cpi_us)
+```
+```{r}
+# ----------------------------------------------------------------------
+#Importing interest rate Canada data
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/interest_rate_canada.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the data
+str(data)
+head(data)
+tail(data)
+
+# checking NA's
+sum(is.na(data))
+
+# Changing Column Names
+names<- c("DATE", "Int_CA")
+colnames(data)<-names
+
+# Converting to Date
+data$DATE<- as.Date(data$DATE, format = "%Y-%m-%d")
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988")
+
+interest_rate_canada<- data
+head(interest_rate_canada)
+```
+```{r}
+# ------------------------------------------------------------------------------
+# Importing interest rate US data
+
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/interest_rate_us.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+#Looking at the data
+str(data)
+head(data)
+tail(data)
+
+# checking NA's
+sum(is.na(data))
+
+# Changing Column Names
+names<- c("DATE", "Int_US")
+colnames(data)<-names
+
+# Converting to Date
+data$DATE<- as.Date(data$DATE, format = "%Y-%m-%d")
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988")
+
+interest_rate_us<- data
+head(interest_rate_us)
+```
+```{r}
+# ---------------------------------------------------------------
+# Importing the Jobs data Canada
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/employment_change_canada.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# ------------------
+# Looking at the data
+str(data)
+head(data)
+tail(data)
+
+# We will only need the date and the actual figures for employment 
+data<- data[,1:3]
+data<- data[,-2]
+
+# Changing the names
+names<- c("DATE", "Jobs_CA")
+colnames(data)<-names
+
+data$DATE<- substr(data$DATE, 1,12) 
+
+# Since the date format is different for different parts of data , we trifurcate the data to arrange the DATE in date format 
+data1<- data[1:41,]
+data2<- data[42:120,]
+data3<- data[121:504,]
+data1$DATE<- as.Date(data1$DATE, format = "%b %d, %Y")
+data2$DATE<- as.Date(data2$DATE, format = "%d-%b-%y")
+data3$DATE<- as.Date(data3$DATE, format = "%b %d, %Y")
+data <- rbind(data1,data2,data3)
+data$DATE<- as.yearmon(data$DATE)
+
+# formatting the JOBS column
+data$Jobs_CA = substr(data$Jobs_CA,1,nchar(data$Jobs_CA)-1)
+data$Jobs_CA<- as.numeric(data$Jobs_CA)* 1000
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# Reversing order of rows to match other data 
+data <- data[rev(rownames(data)),]
+
+# checking NA's
+sum(is.na(data))
+
+employment_change_canada <- data
+head(employment_change_canada)
+```
+```{r}
+#-------------------------------------------------------------------------------------
+# Importing the Non farm Payrolls ( the US job data)
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/Non_Farm_Payrolls.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the data
+head(data)
+tail(data)
+str(data)
+
+# Converting data to single column
+data<- as.matrix(data)
+data <- as.vector(t(data[,-1]))
+Jobs_US <- data * 1000
+
+DATE<-seq(as.Date("1939/1/1"), as.Date("2017/12/1"), by = "month")
+data<- data.frame(DATE, Jobs_US)
+data$DATE<- as.yearmon((data$DATE))
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# checking NA's
+sum(is.na(data))
+
+Non_farm_Payrolls <- data
+head(Non_farm_Payrolls)
+```
+```{r}
+#----------------------------------------------------------------------------------------------
+# Importing Unemployment Rate Canada
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/unemployment_rate_canada.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# LOoking at the Data 
+str(data)
+head(data)
+tail(data)
+
+# Changing names of columns
+names<- c("DATE", "unemp_CA")
+colnames(data)<-names
+
+# Converting to date
+data$DATE<- as.Date(data$DATE, format = "%Y-%m-%d")
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# checking NA's
+sum(is.na(data))
+
+unemployment_rate_canada<- data
+head(unemployment_rate_canada)
+```
+```{r}
+# -------------------------------------------------------------------------------------
+# Importing unemployment rate US
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/unemployment_rate_us.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+str(data)
+head(data)
+tail(data)
+
+# Changing names of columns
+names<- c("DATE", "unemp_rate_US")
+colnames(data)<-names
+
+# Omitting the last chacter % from the unemp_rate_US column and convert to numeric
+data$unemp_rate_US<- substr(data$unemp_rate_US,1,nchar(data$unemp_rate_US)-1)
+data$unemp_rate_US<- as.numeric(data$unemp_rate_US)
+
+# Reversing order of rows to match other data 
+data <- data[rev(rownames(data)),]
+
+# Converting to date
+data$DATE<- as.Date(data$DATE, format = "%d-%b-%y")
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# checking NA's
+sum(is.na(data))
+
+unemployment_rate_us<- data
+head(unemployment_rate_us)
+```
+```{r}
+# --------------------------------------------------------------------
+# Importing Manufacturing data US
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/ISM_Manufacturing.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data
+str(data)
+head(data)
+tail(data)
+
+data<- data[,1:3]
+data<- data[,-2]
+
+# Changing Column Names 
+names<- c("DATE", "Manu_Index_US")
+colnames(data)<-names
+
+# Since the date format is different for different parts of data , we trifurcate the data to arrange the DATE in date format 
+data1<- data[1:41,]
+data2<- data[42:120,]
+data3<- data[121:462,]
+data$DATE<- substr(data$DATE, 1,12) 
+data1$DATE<- as.Date(data1$DATE, format = "%b %d, %Y")
+data2$DATE<- as.Date(data2$DATE, format = "%d-%b-%y")
+data3$DATE<- as.Date(data3$DATE, format = "%b %d, %Y")
+data <- rbind(data1,data2,data3)
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# Reversing order of rows to match other data 
+data <- data[rev(rownames(data)),]
+
+# checking NA's
+sum(is.na(data))
+
+Manufacturing_index_US<- data
+head(Manufacturing_index_US)
+```
+```{r}
+#----------------------------------------------------------------------------------------------
+# Importing Non Manufacturing Data US
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/ISM_Non_Manufacturing.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the Data 
+str(data)
+head(data)
+tail(data)
+
+data<- data[,1:3]
+data<- data[,-2]
+
+# Changing Column Names
+names<- c("DATE", "Non_Manu_Index_US")
+colnames(data)<-names
+
+# Since the date format is different for different parts of data , we trifurcate the data to arrange the DATE in date format 
+nrow(data)
+data1<- data[1:41,]
+data2<- data[42:120,]
+data3<- data[121:247,]
+data$DATE<- substr(data$DATE, 1,12) 
+data1$DATE<- as.Date(data1$DATE, format = "%b %d, %Y")
+data2$DATE<- as.Date(data2$DATE, format = "%d-%b-%y")
+data3$DATE<- as.Date(data3$DATE, format = "%b %d, %Y")
+data <- rbind(data1,data2,data3)
+data$DATE<- as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+# Reversing order of rows to match other data 
+data <- data[rev(rownames(data)),]
+
+# checking NA's
+sum(is.na(data))
+
+Non_Manufacturing_index_US<- data
+head(Non_Manufacturing_index_US)
+```
+```{r}
+#-------------------------------------------------------------------------------------------
+# Importing Oil Price Data
+loc <- getwd()
+oil_price_data <- read.csv(paste(loc,"/ckme136/Oil_prices.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+head(oil_price_data)
+tail(oil_price_data)
+str(oil_price_data)
+
+# As we are interested in the price movement , we will use the price only .
+oil_price_data <- oil_price_data[,1:2]
+oil_price_data<- oil_price_data[1:8772,]
+
+# Changing Column Names
+names<- c("DATE", "oil_price")
+colnames(oil_price_data)<-names
+
+# Changing to numeric
+oil_price_data$oil_price<- as.numeric(oil_price_data$oil_price)
+
+# Converting to Date
+oil_price_data$DATE<-as.Date(oil_price_data$DATE, format = "%d-%b-%y")
+oil_price_data$DATE<-as.yearmon(oil_price_data$DATE)
+
+# Taking the monthly mean value of the oil prices
+oil_price_data<- aggregate(oil_price ~ DATE, oil_price_data, mean)
+
+# subsetting data from Mar 1988
+oil_price_data <- subset(oil_price_data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
+
+
+# checking NA's
+sum(is.na(oil_price_data))
+head(oil_price_data)
+```
+```{r}
+
+# ------------------------------------------------------------------------------------------------
+# Importing RMPI data 
+
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/RMPI_ca.csv", sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+
+# Looking at the data
+head(data)
+tail(data)
+str(data)
+
+data<- data[,1:3]
+data<- data[,-2]
+
+# changing column names
+names<- c("DATE", "RMPI_CA")
+colnames(data)<-names
+
+# Converting to date
+data$DATE<- substr(data$DATE, 1,12) 
+data1<- data[1:41,]
+data2<- data[42:120,]
+data3<- data[121:444,]
+data1$DATE<- as.Date(data1$DATE, format = "%b %d, %Y")
+data2$DATE<- as.Date(data2$DATE, format = "%d-%b-%y")
+data3$DATE<- as.Date(data3$DATE, format = "%b %d, %Y")
+data <- rbind(data1,data2,data3)
+data$DATE<- as.yearmon(data$DATE)
+
+# Removing last character %
+data$RMPI_CA = substr(data$RMPI_CA,1,nchar(data$RMPI_CA)-1)
+
+# converting index to numeric 
+data$RMPI_CA<- as.numeric(data$RMPI_CA)
+
+# Reversing order of rows to match other data 
+data <- data[rev(rownames(data)),]
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Mar 1988")
+
+data<- data[1:nrow(data)-1,]
+
+Raw_Material_Price_Index_CA<- data
+head(Raw_Material_Price_Index_CA)
+```
+```{r}
+#------------------------------------------------------------------------------------------
+# Importing US Import Price Index
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/us_import_price_index.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the data 
+head(data)
+tail(data)
+str(data)
+
+# Transforming data into a single column
+data1<- as.matrix(data)
+Imp_Pr_Index_US<- as.vector(t(data1[,-1]))
+DATE<-seq(as.Date("1989/1/1"), as.Date("2017/12/1"), by = "month")
+data<- data.frame(DATE, Imp_Pr_Index_US)
+
+# Converting to year mon format
+data$DATE<- as.yearmon((data$DATE))
+
+import_price_index_us <- data
+head(import_price_index_us)
+```
+```{r}
+#-----------------------------------------------------------------------------------------------------
+# Import PPI Commodity data 
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/PPI_commodity_us.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+head(data)
+tail(data)
+str(data)
+
+# Changing column names 
+names<- c("DATE", "ppi_comm_US")
+colnames(data)<-names
+nrow(data)
+
+# Converting to date
+data$DATE<-as.Date(data$DATE, format = "%Y-%m-%d")
+data$DATE<-as.yearmon(data$DATE)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Feb 1988")
+
+percent_change<- round(((data$ppi_comm_US[-1]/data$ppi_comm_US[-359] - 1)* 100), digits = 2)
+ppi_commodity_US<- data.frame(data$DATE[-1],percent_change)
+colnames(ppi_commodity_US)<- names
+head(ppi_commodity_US)
+```
+```{r}
+# -----------------------------------------------------------------------------
+# Importing PPI_Industry data US
+loc <- getwd()
+data <- read.csv(paste(loc,"/ckme136/PPI_Industry_us.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+#Looking at the data 
+head(data)
+tail(data)
+str(data)
+
+#Changing Column names 
+names<- c("DATE", "ppi_Ind_US")
+colnames(data)<-names
+
+
+# Converting to date
+data$DATE<-as.Date(data$DATE, format = "%Y-%m-%d")
+data$DATE<-as.yearmon(data$DATE)
+
+# Converting to numeric
+data$ppi_Ind_US <- as.numeric(data$ppi_Ind_US)
+
+# subsetting data from Mar 1988
+data<- subset(data, DATE >= "Feb 1988")
+
+nrow(data)
+
+percent_change<- round(((data$ppi_Ind_US[-1]/data$ppi_Ind_US[-359] - 1)* 100), digits = 2)
+
+ppi_industry_US <- data.frame(data$DATE[-1],percent_change)
+colnames(ppi_industry_US)<- names
+head(ppi_industry_US)
+```
+
+```{r}
+# -------------------------------------------------------------------------------------------------------------
+# Merging Attributes data to create our final data we name as CED ( Combined Exchange Data)
+
+CED <- Reduce(function(x, y) merge(x, y, all=TRUE), list(exchange_rate_data,oil_price_data, import_price_index_us, interest_rate_canada, 
+                                                      interest_rate_us, cpi_ca, cpi_us, employment_change_canada, Non_farm_Payrolls, 
+                                                      Manufacturing_index_US, Non_Manufacturing_index_US, Raw_Material_Price_Index_CA, 
+                                                      unemployment_rate_canada, unemployment_rate_us, ppi_industry_US, ppi_commodity_US ))
+
+summary(CED)
+head(CED)
+str(CED)
+
+
+```
+```{r}
+# Adding the attribute Interest Rate differential to the data 
+CED$Int_Diff <- CED$Int_US-CED$Int_CA
+
+# Eliminating the Date 
+
+CED <- CED[-1]
+
+head(CED)
+```
+
+```{r}
+
+# We see NA values in Non_Manu_Index_US and Imp_Pr_Index_US
+
+# The scatter plot shows correlation between Manu_Index_US and Non_Manu_Index_US . We plot the two for the available values .We find 
+# that they are correlated,  so we will drop the Non_Manu_Index_US since Non_Manu_Index dat does not date back to 1988
+cor(CED$Manu_Index_US[114:358], CED$Non_Manu_Index_US[114:358])
+plot(CED$Manu_Index_US[114:358], CED$Non_Manu_Index_US[114:358])
+
+CED<- CED[-11]
+```
+
+```{r}
+
+# The scatter plot also shows a high degree of correleation in Imp_Pr_Index_US , ppi_comm_US . We plot the two for the available values.
+# Since Imp_Pr_Index has missing values , we will drop Imp_Pr_Index
+cor(CED$Imp_Pr_Index_US[11:358], CED$ppi_comm_US[11:358])
+plot(CED$Imp_Pr_Index_US[11:358], CED$ppi_comm_US[11:358])
+CED<- CED[-3]
+
+head(CED)
+```
+
+```{r}
+# scaling the data 
+CED_Scaled <- scale(CED)
+
+# checking for the outliers 
+boxplot(CED_Scaled, las=2,col = c("green","red","blue","black", "white") )
+
+```
+```{r}
+# Replacing the value of outliers to the +- 1.5 inter quartile range 
+#install.packages("scales")
+library(scales)
+out_treat<- function(f){
+  a <- round(quantile(f,.25)- 1.5* IQR(f))
+  b <- round(quantile(f,.75)+ 1.5* IQR(f))
+  percentile<- ecdf(f)
+  e<- percentile(a)
+  d<- percentile(b)
+  squish(f, quantile(f, c(e,d)))
+}
+# Treating the CED data with out_treat
+CED<-data.frame(lapply(CED,out_treat))
+
+
+```
+```{r}
+
+#install.packages("bnlearn")
+library(bnlearn)
+
+# Building a network using Hill Climbing method in the bnlearn package  
+hes <- hc(CED)
+plot(hes)
+
+```
+```{r}
+
+# install.packages("pcalg")
+library(pcalg)
+# To check the causal network ,an attempt is made to build network Using Pcalg software 
+suffStat <- list(C = cor(CED_Scaled), n = nrow(CED_Scaled))
+pc.CED <- pc(suffStat, indepTest = gaussCItest,alpha = 0.01, labels = c("Exchange_Rate","oil_price","Int_CA","Int_US","cpi_CA","cpi_US","Jobs_CA","Jobs_US", "Manu_Index_US","RMPI_CA", "unemp_CA", "unemp_rate_US", "ppi_Ind_US", "ppi_comm_US", "Int_Diff"))
+plot(pc.CED, main = "CED_Scaled Network from pcalg")
+# converting the pcalg network to bnlearn 
+pc.CED.bn<- as.bn(pc.CED)
+plot(pc.CED.bn, main = " Network converted from pcalg to bnlearn")
+
+```
+```{r}
+# The causal network from pcalg shows us a couple of new causal links "oil_price -> "unemp_CA ", "unemp_rate_US"-> "Int_US" which are considered to be  incorpoarted into the bnlearn network  hes  . Interest Differential is known to be the foremost driver in exchange rates, hence "Int_Diff"-> "Exchange_Rate" is also incorporated .
+whitelist = data.frame( from = c("oil_price","unemp_rate_US","Int_Diff"), to = c("unemp_CA","Int_US", "Exchange_Rate"))
+hesimproved<- hc(CED, whitelist = whitelist)
+
+plot(hesimproved, main = "Network")
+# List of directed arcs in the Network
+directed.arcs(hesimproved)
+
+```
+```{r}
+# Checking the Markov Blanket of target variable 
+hesimproved$nodes$Exchange_Rate$mb
+```
+```{r}
+# Calculating the parameters of the model 
+fitted<- bn.fit(hesimproved, CED)
+fitted
+# The values give us the conditional density(probability) of different nodes in the 
+
+# Checking the QQ plot for the target variable 
+bn.fit.qqplot(fitted$Exchange_Rate)
+
+```
+
+```{r}
+# An attempt is also made to create a network based on the data definitions and experts view of the attributes and how they affect the exchange.
+
+val.string<- paste("[Manu_Index_US][oil_price][RMPI_CA|oil_price][ppi_comm_US|oil_price][ppi_Ind_US|oil_price:ppi_comm_US][Jobs_US|Manu_Index_US][unemp_rate_US|Jobs_US][cpi_US|ppi_comm_US:ppi_Ind_US:oil_price][cpi_CA|RMPI_CA:oil_price][Int_US|cpi_US:unemp_rate_US][Jobs_CA][unemp_CA|Jobs_CA][Int_CA|cpi_CA:unemp_CA][Int_Diff|Int_US:Int_CA][Exchange_Rate|oil_price:Int_Diff]")
+
+val<-model2network(val.string)
+plot(val)
+
+# the Markov Blanket
+val$nodes$Exchange_Rate$mb
+
+# The Directed Arcs
+directed.arcs(val)
+
+
+fittedval<- bn.fit(val, CED)
+fittedval
+
+```
+
+```{r}
+# As of now two networks have been developed , one by the hill climbing method ( "hesimproved" and its corresponding bn.fit object "fitted" which learns the data and the other by the experts view and data definitions ( "val" and its corresponding bn.fit object "fittedval")
+
+# Following are the parameters of the target variable in both models 
+fitted$Exchange_Rate
+fittedval$Exchange_Rate
+
+# Now I will try to perform the Conditional Probability Queries using the "cpquery" command on both of these models 
+# Checking the parameters we can see that "oil_price" and "Int_Diff" are the attributes which show up in both bn.fit models. 
+
+# Conditional Probability query using oil_price 
+cpquery(fitted, event = ((Exchange_Rate >= 1.2) & (Exchange_Rate <= 1.25)), evidence = (oil_price < 59), n = 10000)
+cpquery(fittedval, event = ((Exchange_Rate >= 1.2) & (Exchange_Rate <= 1.25)), evidence = (oil_price < 59), n = 10000)
+
+# Checking the with the actual data 
+CED_oil <- CED[CED$oil_price< 59,]
+CED_oil_Ex <- CED_oil[CED_oil$Exchange_Rate>= 1.2 & CED_oil$Exchange_Rate<= 1.25, ]
+Cond_Prob_oil<- nrow(CED_oil_Ex)/ nrow(CED_oil)
+Cond_Prob_oil
+
+# We see that the model learned by hill climbing method( Cond Prob = 11.52(may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 8.19 (may vary on different runs) ) . The actual Cond Prob = 10.8 
+```
+
+```{r}
+
+# Conditional Probability Query using Int_Diff
+
+cpquery(fitted, event = ((Exchange_Rate >= 1.15) & (Exchange_Rate <= 1.2)), evidence = (Int_Diff >= 0), n = 10000)
+cpquery(fittedval, event = ((Exchange_Rate >= 1.15) & (Exchange_Rate <= 1.2)), evidence = (Int_Diff >= 0), n = 10000)
+
+# Checking the with the actual data 
+CED_Intdiff <- CED[CED$Int_Diff >= 0,]
+CED_Intdiff_Ex <- CED_Intdiff[CED_Intdiff$Exchange_Rate>= 1.15 & CED_Intdiff$Exchange_Rate<= 1.2, ]
+Cond_Prob_Int<- nrow(CED_Intdiff_Ex)/ nrow(CED_Intdiff)
+Cond_Prob_Int
+
+# We see that the model learned by hill climbing method( Cond Prob = 8.4 ( may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 4.1 (may vary on different runs)). The actual Cond Prob = 11.11
+```
+```{r}
+# Conditional Probability query using both attributes 
+ cpquery(fitted, event = ((Exchange_Rate >= 1.2) & (Exchange_Rate <= 1.25)), evidence = ((oil_price < 59) & (Int_Diff <= -2)), n = 10000)
+  cpquery(fittedval, event = ((Exchange_Rate >= 1.2) & (Exchange_Rate <= 1.25)), evidence = ((oil_price < 59) & (Int_Diff <= -2)), n = 10000)
+
+# Checking the with the actual data 
+CED_oil <- CED[CED$oil_price< 59,]
+CED_oil_Int <- CED_oil[CED_oil$Int_Diff<= -2,]
+CED_oil_Int_Ex <- CED_oil_Int[CED_oil_Int$Exchange_Rate>= 1.2 & CED_oil_Int$Exchange_Rate<= 1.25, ]
+Cond_Prob_oil_Int <- nrow(CED_oil_Int_Ex)/ nrow(CED_oil_Int)
+Cond_Prob_oil_Int
+# We see that the model learned by hill climbing method( Cond Prob = 14.45 (may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 11.46(may vary on different runs)) . The actual Cond Prob = 14.28
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
