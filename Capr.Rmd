@@ -16,43 +16,68 @@ When you click the **Knit** button a document will be generated that includes bo
 ```{r}
 # Reading the Exchange Rate File  
 loc <- getwd()
-data <- read.csv(paste(loc,"/ckme136/exchange.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+exchange <- read.csv(paste(loc,"/ckme136/exchange.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
 
 # Looking at the data 
-head(data)
-tail(data)
-str(data)
+head(exchange)
+tail(exchange)
+str(exchange)
 
 # Removing last two lines because of NA's and selecting data from Mar 1988 to Dec 2017
-data<- data[1:7788,]
+exchange<- exchange[1:7788,]
 
 # checking NA values
-sum(is.na(data))
+sum(is.na(exchange))
 
 # As we are interested in the price movement , we will use the price only . The other columns are deleted  
-data <- data[,1:2]
+exchange <- exchange[,1:2]
 
 # Changing names of columns
 names<- c("DATE", "Exchange_Rate")
-colnames(data)<-names
+colnames(exchange)<-names
 
 # Converting the columns to Date and Integer 
-data$DATE<-as.Date(data$DATE, format = "%d-%b-%y")
-data$Exchange_Rate<- as.numeric(data$Exchange_Rate)
+exchange$DATE<-as.Date(exchange$DATE, format = "%d-%b-%y")
+exchange$Exchange_Rate<- as.numeric(exchange$Exchange_Rate)
 
-install.packages("zoo")
-library(zoo)
-data$DATE<-as.yearmon(data$DATE)
-
-# Taking the monthly mean value of the exchange rate
-data<- aggregate(Exchange_Rate ~ DATE, data, mean)
-
-data <- subset(data, DATE<= "Dec 2017" )
-
-# exchange rate of USDCAD (Final Data for analysis )
-exchange_rate_data<- data
-head(exchange_rate_data)
 ```
+```{r}
+#-------------------------------------------------------------------------------------------
+# Importing Oil Price Data
+loc <- getwd()
+oil_data <- read.csv(paste(loc,"/ckme136/Oil_prices.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
+
+# Looking at the data 
+head(oil_data)
+tail(oil_data)
+str(oil_data)
+
+# As we are interested in the price movement , we will use the price only .
+oil_data <- oil_data[,1:2]
+oil_data<- oil_data[1:8772,]
+
+# Changing Column Names
+names<- c("DATE", "oil_price")
+colnames(oil_data)<-names
+
+# Changing to numeric
+oil_data$oil_price<- as.numeric(oil_data$oil_price)
+
+# Converting to Date
+oil_data$DATE<-as.Date(oil_data$DATE, format = "%d-%b-%y")
+
+```
+
+```{r}
+# Merging exchange and oil_data named as EXCH_OIL
+EXCH_OIL<- merge(exchange,oil_data)
+# install.packages("zoo")
+library(zoo)
+EXCH_OIL$DATE<-as.yearmon(EXCH_OIL$DATE)
+head(EXCH_OIL)
+
+```
+
 ```{r}
 #  Importing the Consumer Price Index of Canada 
 loc <- getwd()
@@ -384,43 +409,7 @@ sum(is.na(data))
 Non_Manufacturing_index_US<- data
 head(Non_Manufacturing_index_US)
 ```
-```{r}
-#-------------------------------------------------------------------------------------------
-# Importing Oil Price Data
-loc <- getwd()
-oil_price_data <- read.csv(paste(loc,"/ckme136/Oil_prices.csv",sep=""), na.strings = c("","NA"), stringsAsFactors = F, header = T)
 
-# Looking at the data 
-head(oil_price_data)
-tail(oil_price_data)
-str(oil_price_data)
-
-# As we are interested in the price movement , we will use the price only .
-oil_price_data <- oil_price_data[,1:2]
-oil_price_data<- oil_price_data[1:8772,]
-
-# Changing Column Names
-names<- c("DATE", "oil_price")
-colnames(oil_price_data)<-names
-
-# Changing to numeric
-oil_price_data$oil_price<- as.numeric(oil_price_data$oil_price)
-
-# Converting to Date
-oil_price_data$DATE<-as.Date(oil_price_data$DATE, format = "%d-%b-%y")
-oil_price_data$DATE<-as.yearmon(oil_price_data$DATE)
-
-# Taking the monthly mean value of the oil prices
-oil_price_data<- aggregate(oil_price ~ DATE, oil_price_data, mean)
-
-# subsetting data from Mar 1988
-oil_price_data <- subset(oil_price_data, DATE >= "Mar 1988" & DATE <= "Dec 2017")
-
-
-# checking NA's
-sum(is.na(oil_price_data))
-head(oil_price_data)
-```
 ```{r}
 
 # ------------------------------------------------------------------------------------------------
@@ -558,28 +547,20 @@ head(ppi_industry_US)
 
 ```{r}
 # -------------------------------------------------------------------------------------------------------------
-# Merging Attributes data to create our final data we name as CED ( Combined Exchange Data)
-
-CED <- Reduce(function(x, y) merge(x, y, all=TRUE), list(exchange_rate_data,oil_price_data, import_price_index_us, interest_rate_canada, 
-                                                      interest_rate_us, cpi_ca, cpi_us, employment_change_canada, Non_farm_Payrolls, 
-                                                      Manufacturing_index_US, Non_Manufacturing_index_US, Raw_Material_Price_Index_CA, 
-                                                      unemployment_rate_canada, unemployment_rate_us, ppi_industry_US, ppi_commodity_US ))
-
+# Merging data for Attributes 
+MD <- Reduce(function(x, y) merge(x, y, all=TRUE), list(import_price_index_us, interest_rate_canada,interest_rate_us, cpi_ca, cpi_us, employment_change_canada, Non_farm_Payrolls, Manufacturing_index_US, Non_Manufacturing_index_US, Raw_Material_Price_Index_CA, unemployment_rate_canada, unemployment_rate_us, ppi_industry_US, ppi_commodity_US ))
+# Merging EXCH_OIL and MD to make the complete Exchange Data 
+CED<-  merge(EXCH_OIL,MD)
 summary(CED)
 head(CED)
 str(CED)
 
-
-```
-```{r}
 # Adding the attribute Interest Rate differential to the data 
-CED$Int_Diff <- CED$Int_US-CED$Int_CA
+CED$Int_Diff <- CED$Int_US - CED$Int_CA
 
-# Eliminating the Date 
+# Deleting Date column
+ CED <- CED[-1]
 
-CED <- CED[-1]
-
-head(CED)
 ```
 
 ```{r}
@@ -588,8 +569,8 @@ head(CED)
 
 # The scatter plot shows correlation between Manu_Index_US and Non_Manu_Index_US . We plot the two for the available values .We find 
 # that they are correlated,  so we will drop the Non_Manu_Index_US since Non_Manu_Index dat does not date back to 1988
-cor(CED$Manu_Index_US[114:358], CED$Non_Manu_Index_US[114:358])
-plot(CED$Manu_Index_US[114:358], CED$Non_Manu_Index_US[114:358])
+cor(CED$Manu_Index_US[which(!is.na(CED$Non_Manu_Index_US))], CED$Non_Manu_Index_US[which(!is.na(CED$Non_Manu_Index_US))])
+plot(CED$Manu_Index_US[which(!is.na(CED$Non_Manu_Index_US))], CED$Non_Manu_Index_US[which(!is.na(CED$Non_Manu_Index_US))])
 
 CED<- CED[-11]
 ```
@@ -598,8 +579,8 @@ CED<- CED[-11]
 
 # The scatter plot also shows a high degree of correleation in Imp_Pr_Index_US , ppi_comm_US . We plot the two for the available values.
 # Since Imp_Pr_Index has missing values , we will drop Imp_Pr_Index
-cor(CED$Imp_Pr_Index_US[11:358], CED$ppi_comm_US[11:358])
-plot(CED$Imp_Pr_Index_US[11:358], CED$ppi_comm_US[11:358])
+cor(CED$Imp_Pr_Index_US[which(!is.na(CED$Imp_Pr_Index_US))], CED$ppi_comm_US[which(!is.na(CED$Imp_Pr_Index_US))])
+plot(CED$Imp_Pr_Index_US[which(!is.na(CED$Imp_Pr_Index_US))], CED$ppi_comm_US[which(!is.na(CED$Imp_Pr_Index_US))])
 CED<- CED[-3]
 
 head(CED)
@@ -618,8 +599,8 @@ boxplot(CED_Scaled, las=2,col = c("green","red","blue","black", "white") )
 #install.packages("scales")
 library(scales)
 out_treat<- function(f){
-  a <- round(quantile(f,.25)- 1.5* IQR(f))
-  b <- round(quantile(f,.75)+ 1.5* IQR(f))
+  a <- round(quantile(f,.25)- 1.5* IQR(f), digits = 2)
+  b <- round(quantile(f,.75)+ 1.5* IQR(f), digits = 2)
   percentile<- ecdf(f)
   e<- percentile(a)
   d<- percentile(b)
@@ -645,17 +626,15 @@ plot(hes)
 # install.packages("pcalg")
 library(pcalg)
 # To check the causal network ,an attempt is made to build network Using Pcalg software 
-suffStat <- list(C = cor(CED_Scaled), n = nrow(CED_Scaled))
+suffStat <- list(C = cor(CED), n = nrow(CED))
 pc.CED <- pc(suffStat, indepTest = gaussCItest,alpha = 0.01, labels = c("Exchange_Rate","oil_price","Int_CA","Int_US","cpi_CA","cpi_US","Jobs_CA","Jobs_US", "Manu_Index_US","RMPI_CA", "unemp_CA", "unemp_rate_US", "ppi_Ind_US", "ppi_comm_US", "Int_Diff"))
 plot(pc.CED, main = "CED_Scaled Network from pcalg")
-# converting the pcalg network to bnlearn 
-pc.CED.bn<- as.bn(pc.CED)
-plot(pc.CED.bn, main = " Network converted from pcalg to bnlearn")
+
 
 ```
 ```{r}
-# The causal network from pcalg shows us a couple of new causal links "oil_price -> "unemp_CA ", "unemp_rate_US"-> "Int_US" which are considered to be  incorpoarted into the bnlearn network  hes  . Interest Differential is known to be the foremost driver in exchange rates, hence "Int_Diff"-> "Exchange_Rate" is also incorporated .
-whitelist = data.frame( from = c("oil_price","unemp_rate_US","Int_Diff"), to = c("unemp_CA","Int_US", "Exchange_Rate"))
+# The causal network from pcalg shows us a couple of new causal links and directed arcs which are considered to be  incorpoarted into the bnlearn network  hes  . Interest Differential is known to be the foremost driver in exchange rates, hence "Int_Diff"-> "Exchange_Rate" is also incorporated .
+whitelist = data.frame( from = c("oil_price","Int_Diff", "ppi_comm_US", "ppi_Ind_US","unemp_rate_US", "Jobs_US", "Jobs_CA"), to = c("unemp_CA", "Exchange_Rate", "ppi_Ind_US", "cpi_US","Int_US", "unemp_rate_US", "unemp_CA"))
 hesimproved<- hc(CED, whitelist = whitelist)
 
 plot(hesimproved, main = "Network")
@@ -679,27 +658,41 @@ bn.fit.qqplot(fitted$Exchange_Rate)
 ```
 
 ```{r}
+
+# Cross Validating the Bayesian Network using the Mean Squared Error approach
+
+CEDvalMSE <- bn.cv(CED, bn = "hc", loss = "mse", algorithm.args = list (whitelist = whitelist),loss.args = list(target = "Exchange_Rate", "Exchange_Rate"), runs = 10)
+
+plot(CEDvalMSE , main = "Mean Squared Error", xlab = "Exchange Rate")
+
+# Cross Validating the Network using the Predictive correlation 
+
+CEDvalCOR <- bn.cv(CED, bn = "hc", loss = "cor", algorithm.args = list (whitelist = whitelist),loss.args = list(target = "Exchange_Rate"), runs = 10)
+
+plot(CEDvalCOR, main = "Correlation between Observed and Predicted Values", xlab = "Exchange Rate")
+
+```
+
+```{r}
 # An attempt is also made to create a network based on the data definitions and experts view of the attributes and how they affect the exchange.
 
 val.string<- paste("[Manu_Index_US][oil_price][RMPI_CA|oil_price][ppi_comm_US|oil_price][ppi_Ind_US|oil_price:ppi_comm_US][Jobs_US|Manu_Index_US][unemp_rate_US|Jobs_US][cpi_US|ppi_comm_US:ppi_Ind_US:oil_price][cpi_CA|RMPI_CA:oil_price][Int_US|cpi_US:unemp_rate_US][Jobs_CA][unemp_CA|Jobs_CA][Int_CA|cpi_CA:unemp_CA][Int_Diff|Int_US:Int_CA][Exchange_Rate|oil_price:Int_Diff]")
 
 val<-model2network(val.string)
-plot(val)
+plot(val, main = "Network generated by data definitions")
 
 # the Markov Blanket
 val$nodes$Exchange_Rate$mb
 
 # The Directed Arcs
 directed.arcs(val)
-
-
-fittedval<- bn.fit(val, CED)
+fittedval<- bn.fit(val, CED )
 fittedval
 
 ```
 
 ```{r}
-# As of now two networks have been developed , one by the hill climbing method ( "hesimproved" and its corresponding bn.fit object "fitted" which learns the data and the other by the experts view and data definitions ( "val" and its corresponding bn.fit object "fittedval")
+# As of now two networks have been developed , one by the hill climbing method ( "hesimproved" and its corresponding bn.fit object "fitted" which learns the data, and the other by the experts view and data definitions ( "val" and its corresponding bn.fit object "fittedval")
 
 # Following are the parameters of the target variable in both models 
 fitted$Exchange_Rate
@@ -718,7 +711,7 @@ CED_oil_Ex <- CED_oil[CED_oil$Exchange_Rate>= 1.2 & CED_oil$Exchange_Rate<= 1.25
 Cond_Prob_oil<- nrow(CED_oil_Ex)/ nrow(CED_oil)
 Cond_Prob_oil
 
-# We see that the model learned by hill climbing method( Cond Prob = 11.52(may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 8.19 (may vary on different runs) ) . The actual Cond Prob = 10.8 
+# We see that the model learned by hill climbing method( Cond Prob = 11.57(may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 8.55 (may vary on different runs) ) . The actual Cond Prob = 10.53 
 ```
 
 ```{r}
@@ -734,7 +727,7 @@ CED_Intdiff_Ex <- CED_Intdiff[CED_Intdiff$Exchange_Rate>= 1.15 & CED_Intdiff$Exc
 Cond_Prob_Int<- nrow(CED_Intdiff_Ex)/ nrow(CED_Intdiff)
 Cond_Prob_Int
 
-# We see that the model learned by hill climbing method( Cond Prob = 8.4 ( may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 4.1 (may vary on different runs)). The actual Cond Prob = 11.11
+# We see that the model learned by hill climbing method( Cond Prob = 9.09 ( may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 4.57 (may vary on different runs)). The actual Cond Prob = 11.41
 ```
 ```{r}
 # Conditional Probability query using both attributes 
@@ -747,33 +740,48 @@ CED_oil_Int <- CED_oil[CED_oil$Int_Diff<= -2,]
 CED_oil_Int_Ex <- CED_oil_Int[CED_oil_Int$Exchange_Rate>= 1.2 & CED_oil_Int$Exchange_Rate<= 1.25, ]
 Cond_Prob_oil_Int <- nrow(CED_oil_Int_Ex)/ nrow(CED_oil_Int)
 Cond_Prob_oil_Int
-# We see that the model learned by hill climbing method( Cond Prob = 14.45 (may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 11.46(may vary on different runs)) . The actual Cond Prob = 14.28
+# We see that the model learned by hill climbing method( Cond Prob = 13.71 (may vary on different runs)) is more accurate than the model created by data definitions ( Cond Prob = 12.14(may vary on different runs)) . The actual Cond Prob = 14.99
 ```
 
+```{r}
 
+#  Attempt is also made to discretize the data . 
 
+CED_discret<- discretize(CED, breaks=5)
+summary(CED_discret)
+```
+```{r}
+# Build a bayesian network classifier
 
+hesdis<- hc(CED_discret)
+plot(hesdis)
 
+```
+```{r}
+# Improving the network
+whitelistdis = data.frame( from = c("Int_Diff"), to = c("Exchange_Rate"))
+blacklist = data.frame( from = c("Manu_Index_US"), to = c("Exchange_Rate"))
+hesdisimp<- hc(CED_discret, whitelist = whitelistdis, blacklist =  blacklist)
+plot(hesdisimp)
+directed.arcs(hesdisimp)
 
+```
+```{r}
 
+fitteddisc<- bn.fit(hesdisimp, CED_discret)
+bn.fit.barchart(fitteddisc$Exchange_Rate)
 
+```
 
+```{r}
+#  Cross Validation for our network
+xval <- bn.cv(CED_discret, bn = "hc", loss = "pred", algorithm.args = list (whitelist = whitelistdis, blacklist = blacklist),loss.args = list(target = "Exchange_Rate"))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#  Table of Observed and Predicted Values
+OBSERVED = unlist(lapply(xval, `[[`, "observed"))
+PREDICTED = unlist(lapply(xval, `[[`, "predicted"))
+table(OBSERVED, PREDICTED)
+````
 
 
 
