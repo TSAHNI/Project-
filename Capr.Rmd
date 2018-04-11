@@ -1,6 +1,9 @@
 ---
 title: "Capstone"
-output: html_document
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -618,17 +621,19 @@ library(bnlearn)
 
 # Building a network using Hill Climbing method in the bnlearn package  
 hes <- hc(CED)
-plot(hes)
+plot(hes, main = "The Initial Network")
 
 ```
 ```{r}
 
 # install.packages("pcalg")
+library(Rcpp)
+library(igraph)
 library(pcalg)
 # To check the causal network ,an attempt is made to build network Using Pcalg software 
 suffStat <- list(C = cor(CED), n = nrow(CED))
 pc.CED <- pc(suffStat, indepTest = gaussCItest,alpha = 0.01, labels = c("Exchange_Rate","oil_price","Int_CA","Int_US","cpi_CA","cpi_US","Jobs_CA","Jobs_US", "Manu_Index_US","RMPI_CA", "unemp_CA", "unemp_rate_US", "ppi_Ind_US", "ppi_comm_US", "Int_Diff"))
-plot(pc.CED, main = "CED_Scaled Network from pcalg")
+plot(pc.CED, main = "Causal Network from pcalg")
 
 
 ```
@@ -637,7 +642,7 @@ plot(pc.CED, main = "CED_Scaled Network from pcalg")
 whitelist = data.frame( from = c("oil_price","Int_Diff", "ppi_comm_US", "ppi_Ind_US","unemp_rate_US", "Jobs_US", "Jobs_CA"), to = c("unemp_CA", "Exchange_Rate", "ppi_Ind_US", "cpi_US","Int_US", "unemp_rate_US", "unemp_CA"))
 hesimproved<- hc(CED, whitelist = whitelist)
 
-plot(hesimproved, main = "Network")
+plot(hesimproved, main = " Improved Network")
 # List of directed arcs in the Network
 directed.arcs(hesimproved)
 
@@ -754,7 +759,7 @@ summary(CED_discret)
 # Build a bayesian network classifier
 
 hesdis<- hc(CED_discret)
-plot(hesdis)
+plot(hesdis, main = "Network (Discrete Data)")
 
 ```
 ```{r}
@@ -762,9 +767,8 @@ plot(hesdis)
 whitelistdis = data.frame( from = c("Int_Diff"), to = c("Exchange_Rate"))
 blacklist = data.frame( from = c("Manu_Index_US"), to = c("Exchange_Rate"))
 hesdisimp<- hc(CED_discret, whitelist = whitelistdis, blacklist =  blacklist)
-plot(hesdisimp)
 directed.arcs(hesdisimp)
-
+plot(hesdisimp , main = " Improved Network of Discrete Data")
 ```
 ```{r}
 
@@ -774,16 +778,26 @@ bn.fit.barchart(fitteddisc$Exchange_Rate)
 ```
 
 ```{r}
-#  Cross Validation for our network
+#  Cross Validation for our   network (Discrete Data)
+xvalwb <- bn.cv(CED_discret, bn = "hc", loss = "pred",loss.args = list(target = "Exchange_Rate"))
+
+#  Table of Observed and Predicted Values
+OBS = unlist(lapply(xvalwb, `[[`, "observed"))
+PRED = unlist(lapply(xvalwb, `[[`, "predicted"))
+table(OBS, PRED)
+```
+
+```{r}
+#  Cross Validation for our  improved network of discrete data 
 xval <- bn.cv(CED_discret, bn = "hc", loss = "pred", algorithm.args = list (whitelist = whitelistdis, blacklist = blacklist),loss.args = list(target = "Exchange_Rate"))
 
 #  Table of Observed and Predicted Values
 OBSERVED = unlist(lapply(xval, `[[`, "observed"))
 PREDICTED = unlist(lapply(xval, `[[`, "predicted"))
 table(OBSERVED, PREDICTED)
-````
 
 
+```
 
 
 
